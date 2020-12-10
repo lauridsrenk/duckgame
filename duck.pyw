@@ -2,7 +2,6 @@ import pygame
 import os
 import random
 
-
 class Settings(object):
     """
     global game settings and information
@@ -13,6 +12,7 @@ class Settings(object):
     title = "Duck"
     file_path = os.path.dirname(os.path.abspath(__file__))
     images_path = os.path.join(file_path, "images")
+    nof_hazards = 5
 
     @staticmethod
     def get_dim():
@@ -76,10 +76,14 @@ class MovingSprite(pygame.sprite.Sprite):
         new_top = self.rect.top + self.direction_y * self.speed
         new_right = new_left + self.rect.width
         new_bottom = new_top + self.rect.height
-        if 0 < new_left and new_right < self.game.settings.width:
+        if 0 < new_left and new_right < Settings.width:
             self.rect.left = new_left
-        if 0 < new_top and new_bottom < self.game.settings.height:
+        if 0 < new_top and new_bottom < Settings.height:
             self.rect.top = new_top
+
+    def move(self):
+        self.rect.left = self.rect.left + self.direction_x * self.speed
+        self.rect.top = self.rect.top + self.direction_y * self.speed
 
     def move_up(self):
         """
@@ -127,10 +131,10 @@ class Duck(MovingSprite):
         Args:
             game (Game): game object
         """
-        super().__init__(os.path.join(settings.images_path, 'duck', 'd_06_01.png'), game)
+        super().__init__(os.path.join(Settings.images_path, 'duck', 'd_06_01.png'), game)
         self.speed = 3
-        self.rect.centerx = self.game.settings.width // 2
-        self.rect.bottom = self.game.settings.height
+        self.rect.centerx = Settings.width // 2
+        self.rect.bottom = Settings.height
 
     def update(self):
         """
@@ -142,12 +146,12 @@ class Duck(MovingSprite):
         """
         reposition at a random position inside the screen's borders
         """
-        new_left = random.randint(0, self.game.settings.width)
-        new_top = random.randint(0, self.game.settings.height)
+        new_left = random.randint(0, Settings.width)
+        new_top = random.randint(0, Settings.height)
         new_right = new_left + self.rect.width
         new_bottom = new_top + self.rect.height
-        if not (0 < new_left and new_right < self.game.settings.width
-        and 0 < new_top and new_bottom < self.game.settings.height):
+        if not (0 < new_left and new_right < Settings.width
+        and 0 < new_top and new_bottom < Settings.height):
             self.respawn_random()
         else:
             self.rect.left = new_left
@@ -160,35 +164,92 @@ class Duck(MovingSprite):
         screen.blit(self.image, self.rect)
 
 
+class Hazard(MovingSprite):
+    def __init__(self, img_filepath, game):
+        super().__init__(img_filepath, game)
+        self.startpos()
+        self.move_down()
+
+    def update(self):
+        self.move()
+        if self.rect.top >= Settings.height:
+            self.kill()
+
+    def startpos(self):
+        self.rect.left = random.randint(0,Settings.width - self.rect.width)
+        self.rect.bottom = 0
+
+
+class Barrel(Hazard):
+    def __init__(self, game):
+        super().__init__(os.path.join(Settings.images_path, 'hazards', 'barrel.png'), game)
+        self.speed = 5
+
+
+class Axe(Hazard):
+    def __init__(self, game):
+        super().__init__(os.path.join(Settings.images_path, 'hazards', 'axe.png'), game)
+        self.speed = 6
+
+
+class Hammer(Hazard):
+    def __init__(self, game):
+        super().__init__(os.path.join(Settings.images_path, 'hazards', 'hammer.png'), game)
+        self.speed = 7
+
+
+class Text:
+    def __init__(self, fontPath, fontSize, fontColor, top, left):
+        self.font = pygame.font.Font(fontPath, fontSize)
+        self.font_color = fontColor
+        self.str = ""
+        self.top = top
+        self.left = left
+
+    def write(self, str):
+        self.str = str
+
+    def draw(self, screen):
+        text = self.font.render(self.str, True, self.font_color)
+        screen.blit(text,(self.top, self.left, text.get_width(), text.get_height() ))
+
+
 class Game(object):
     """
     Game management
 
     start the game with Game.run()
     """
-    def __init__(self, settings):
+    def __init__(self):
         """Constructor
-        Args:
-            settings (Settings): settings object 
         """
-        self.settings = settings
-        self.screen = pygame.display.set_mode(settings.get_dim())
+        self.screen = pygame.display.set_mode(Settings.get_dim())
         self.clock = pygame.time.Clock()
         self.done = False
-        pygame.display.set_caption(self.settings.title)
+        pygame.display.set_caption(Settings.title)
+
+        #game variables
+        self.time_between_hazards = 300
+        self.timestamps = {
+            "last_hazard" : 0
+        }
+        self.score = 0
 
         #sprites
-        self.background = Background(os.path.join(self.settings.images_path, 'background.png'))
+        self.background = Background(os.path.join(Settings.images_path, 'background.png'))
         self.duck = Duck(self)
+        self.all_hazards = pygame.sprite.Group()
 
-
+        #texts
+        self.score_text = Text(pygame.font.match_font("RockwellExtra"),24, 0xFFFFFFFF, 5, 5)
 
     def run(self):
         """
         main program loop
         """
         while not self.done:
-            self.clock.tick(self.settings.fps)
+            self.clock.tick(Settings.fps)
+
             #event handling
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -206,8 +267,8 @@ class Game(object):
                         self.duck.stop_vertical()
 
                     #Respawn
-                    elif event.key == pygame.K_SPACE:
-                        self.duck.respawn_random()
+                    #elif event.key == pygame.K_SPACE:
+                    #    self.duck.respawn_random()
 
                 elif event.type == pygame.KEYDOWN:
                     #Start Moving
@@ -220,23 +281,53 @@ class Game(object):
                     elif event.key == pygame.K_DOWN:
                         self.duck.move_down()
 
-            #updates
+            self.update()
+            self.draw()
+    
+    def update(self):
             self.duck.update()
-            
-            #drawing
+            self.all_hazards.update()
+
+            #increase score, spawn new hazard
+            if (len(self.all_hazards) < Settings.nof_hazards
+            and pygame.time.get_ticks() >= self.timestamps["last_hazard"] + self.time_between_hazards):
+                self.increase_score()
+
+                hazard_class = random.choice([Barrel, Hammer, Axe])
+                h = hazard_class(self)
+                self.all_hazards.add(h)
+                self.timestamps["last_hazard"] = pygame.time.get_ticks()
+
+                #Hazard won't overlap with another
+                tries = 100
+                while pygame.sprite.spritecollide(h,self.all_hazards, False) and tries > 0:
+                    h.startpos()
+                    tries -= 1
+
+            #collisions with duck
+            if pygame.sprite.spritecollide(self.duck,self.all_hazards, False):
+                self.done = True
+    
+    def draw(self):
             self.background.draw(self.screen)
             self.duck.draw(self.screen)
+            self.all_hazards.draw(self.screen)
+            self.score_text.draw(self.screen)
             pygame.display.flip()
+
+    def increase_score(self):
+        self.score += 1
+        self.score_text.write(f"{self.score} points")
+
+
 
 
 
 
 if __name__ == '__main__':
-    settings = Settings()
 
     pygame.init()
-    game = Game(settings)
+    game = Game()
     game.run()
   
     pygame.quit()
-
