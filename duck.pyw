@@ -2,7 +2,7 @@ import pygame
 import os
 import random
 
-class Settings(object):
+class Settings(object):#entire Class is static
     width = 700
     height = 600
     fps = 60
@@ -105,15 +105,9 @@ class Duck(MovingSprite):
             self.change_image(os.path.join(Settings.images_path, 'duck', 'd_06_01.png'))
 
     def respawn_random(self):
-        new_left = random.randint(0, Settings.width)
-        new_top = random.randint(0, Settings.height)
-        new_right = new_left + self.rect.width
-        new_bottom = new_top + self.rect.height
-        if 0 < new_left and new_right < Settings.width and 0 < new_top and new_bottom < Settings.height:
-            self.rect.left = new_left
-            self.rect.top = new_top
-        else:
-            self.respawn_random()
+        new_left = random.randint(0, Settings.width - self.rect.width)
+        new_top = random.randint(0, Settings.height - self.rect.height)
+        self.rect.move_ip(new_left, new_top)
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
@@ -164,8 +158,8 @@ class Text(pygame.sprite.Sprite):
         self.rect.top = top
         self.rect.left = left
 
-    def write(self, str):
-        self.str = str
+    def write(self, text):
+        self.str = text
         self.image = self.font.render(self.str, True, self.font_color)
         self.rect.width = self.image.get_width()
         self.rect.height = self.image.get_height()
@@ -176,6 +170,7 @@ class Game(object):
         self.screen = pygame.display.set_mode(Settings.get_dim())
         self.clock = pygame.time.Clock()
         self.done = False
+        self.font = pygame.font.match_font("RockwellExtra")
         pygame.display.set_caption(Settings.title)
 
         #game variables
@@ -196,8 +191,8 @@ class Game(object):
         #texts
         self.all_texts = pygame.sprite.Group()
         self.texts_by_name = {
-            "score" : Text(pygame.font.match_font("RockwellExtra"), 24, 0xFFFFFFFF, 5, 5),
-            #"debug" : Text(pygame.font.match_font("RockwellExtra"), 24, 0xFFFFFFFF, 5, 50),
+            "score" : Text(self.font, 24, 0xFFFFFFFF, 5, 5),
+            #"debug" : Text(self.font, 24, 0xFFFFFFFF, 5, 50),
         }
         for t in self.texts_by_name:
             self.all_texts.add(self.texts_by_name[t])
