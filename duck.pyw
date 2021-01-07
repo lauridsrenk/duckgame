@@ -2,7 +2,11 @@ import pygame
 import os
 import random
 
-class Settings(object):#entire Class is static
+class Settings(object):
+    """
+    Settings for the game
+    the entire class is static
+    """
     width = 700
     height = 600
     fps = 60
@@ -22,10 +26,16 @@ class Settings(object):#entire Class is static
 
     @staticmethod
     def get_dim():
+        """
+        returns a tuple of the window width and height
+        """
         return (Settings.width, Settings.height)
 
 
 class Background(pygame.sprite.Sprite):
+    """
+    Background for the game
+    """
     def __init__(self, filepath):
         super().__init__()
         self.image = pygame.image.load(filepath).convert()
@@ -37,6 +47,9 @@ class Background(pygame.sprite.Sprite):
 
 
 class MovingSprite(pygame.sprite.Sprite):
+    """
+    Base Class for a sprite with movement
+    """
     def __init__(self, img_filepath, game):
         super().__init__()
         self.image = pygame.image.load(img_filepath).convert_alpha()
@@ -48,9 +61,16 @@ class MovingSprite(pygame.sprite.Sprite):
         self.game = game
 
     def update(self):
+        """
+        update needs to be defined for each subclass
+        """
         pass
 
     def move_in_screen(self):
+        """
+        move the sprite according to self.speed, self.direction_x and self.direction_y
+        without leaving the screen
+        """
         new_left = self.rect.left + self.direction_x * self.speed
         new_top = self.rect.top + self.direction_y * self.speed
         new_right = new_left + self.rect.width
@@ -61,28 +81,52 @@ class MovingSprite(pygame.sprite.Sprite):
             self.rect.top = new_top
 
     def move(self):
-        self.rect.left = self.rect.left + self.direction_x * self.speed
-        self.rect.top = self.rect.top + self.direction_y * self.speed
+        """
+        move the sprite according to self.speed, self.direction_x and self.direction_y.
+        sprite may leave the screen
+        """
+        self.rect.move_ip(self.rect.left + self.direction_x * self.speed, self.rect.top + self.direction_y * self.speed)
 
     def move_up(self):
+        """
+        sets the direction attributes to make the sprite move up
+        """
         self.direction_y = -1
 
     def move_down(self):
+        """
+        sets the direction attributes to make the sprite move down
+        """
         self.direction_y = 1
 
     def move_left(self):
+        """
+        sets the direction attributes to make the sprite move left
+        """
         self.direction_x = -1
     
     def move_right(self):
+        """
+        sets the direction attributes to make the sprite move right
+        """
         self.direction_x = 1
 
     def stop_horizontal(self):
+        """
+        sets the direction attributes to stop horizontal movement
+        """
         self.direction_x = 0
 
     def stop_vertical(self):
+        """
+        sets the direction attributes to stop vertical movement
+        """
         self.direction_y = 0
 
     def change_image(self, img_filepath):
+        """
+        changes the image of the sprite
+        """
         old_left = self.rect.left
         old_top = self.rect.top
         self.image = pygame.image.load(img_filepath).convert_alpha()
@@ -91,6 +135,9 @@ class MovingSprite(pygame.sprite.Sprite):
 
 
 class Duck(MovingSprite):
+    """
+    Player Object
+    """
     def __init__(self, game):
         super().__init__(os.path.join(Settings.images_path, 'duck', 'd_06_01.png'), game)
         self.speed = 5
@@ -105,15 +152,23 @@ class Duck(MovingSprite):
             self.change_image(os.path.join(Settings.images_path, 'duck', 'd_06_01.png'))
 
     def respawn_random(self):
+        """
+        respawns the duck at a random position without leaving the screen
+        duck may collide with other sprites
+        """
         new_left = random.randint(0, Settings.width - self.rect.width)
         new_top = random.randint(0, Settings.height - self.rect.height)
         self.rect.move_ip(new_left, new_top)
 
     def draw(self, screen):
+        #self.draw is needed because this object will not be stored in a spritegroup
         screen.blit(self.image, self.rect)
 
 
 class Hazard(MovingSprite):
+    """
+    Base class for hazards
+    """
     def __init__(self, img_filepath, game):
         super().__init__(img_filepath, game)
         self.startpos()
@@ -123,31 +178,47 @@ class Hazard(MovingSprite):
         self.move()
         if self.rect.top >= Settings.height:
             self.kill()
+            self.game.increase_score()
 
     def startpos(self):
         self.rect.left = random.randint(0,Settings.width - self.rect.width)
         self.rect.bottom = 0
 
+    def draw(self, screen):
+        screen.blit(self.image, self.rect)
+
 
 class Barrel(Hazard):
+    """
+    A hazard with a base speed of 5
+    """
     def __init__(self, game):
         super().__init__(os.path.join(Settings.images_path, 'hazards', 'barrel.png'), game)
         self.speed = 5
 
 
 class Axe(Hazard):
+    """
+    A hazard with a base speed of 6
+    """
     def __init__(self, game):
         super().__init__(os.path.join(Settings.images_path, 'hazards', 'axe.png'), game)
         self.speed = 6
 
 
 class Hammer(Hazard):
+    """
+    A hazard with a base speed of 7
+    """
     def __init__(self, game):
         super().__init__(os.path.join(Settings.images_path, 'hazards', 'hammer.png'), game)
         self.speed = 7
 
 
 class Text(pygame.sprite.Sprite):
+    """
+    A pygame.sprite.Sprite child class used to display text
+    """
     def __init__(self, fontPath, fontSize, fontColor, top, left):
         super().__init__()
         self.font = pygame.font.Font(fontPath, fontSize)
@@ -159,6 +230,9 @@ class Text(pygame.sprite.Sprite):
         self.rect.left = left
 
     def write(self, text):
+        """
+        sets the string that this object shall display
+        """
         self.str = text
         self.image = self.font.render(self.str, True, self.font_color)
         self.rect.width = self.image.get_width()
@@ -166,6 +240,9 @@ class Text(pygame.sprite.Sprite):
 
 
 class Game(object):
+    """
+    Main game object
+    """
     def __init__(self):
         self.screen = pygame.display.set_mode(Settings.get_dim())
         self.clock = pygame.time.Clock()
@@ -198,67 +275,70 @@ class Game(object):
             self.all_texts.add(self.texts_by_name[t])
 
     def run(self):
+        """
+        Main game loop
+        """
         while not self.done:
             self.clock.tick(Settings.fps)
-
-            #event handling
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.done = True
-
-                if event.type == pygame.KEYUP:
-                    #QUIT
-                    if event.key == pygame.K_ESCAPE:
-                        self.done = True 
-
-                    #Stop Moving
-                    elif event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
-                        self.duck.stop_horizontal()
-                    elif event.key == pygame.K_UP or event.key == pygame.K_DOWN:
-                        self.duck.stop_vertical()
-
-                    #Respawn
-                    elif event.key == pygame.K_SPACE:
-                        self.duck.respawn_random()
-                        tries = 100
-                        while pygame.sprite.spritecollide(self.duck, self.all_hazards, False) and tries > 0:
-                            tries -= 1
-                            self.duck.respawn_random()
-
-                elif event.type == pygame.KEYDOWN:
-                    #Start Moving
-                    if event.key == pygame.K_LEFT:
-                        self.duck.move_left()
-                    elif event.key == pygame.K_RIGHT:
-                        self.duck.move_right()
-                    elif event.key == pygame.K_UP:
-                        self.duck.move_up()
-                    elif event.key == pygame.K_DOWN:
-                        self.duck.move_down()
-
+            self.handle_events()
             self.update()
             self.draw()
     
+    def handle_events(self):
+        for event in pygame.event.get():
+            #Quit on window closed
+            if event.type == pygame.QUIT:
+                self.done = True
+
+            if event.type == pygame.KEYUP:
+                #"Quit on ESC
+                if event.key == pygame.K_ESCAPE:
+                    self.done = True 
+
+                #Stop Moving
+                elif event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
+                    self.duck.stop_horizontal()
+                elif event.key == pygame.K_UP or event.key == pygame.K_DOWN:
+                    self.duck.stop_vertical()
+
+                #Respawn
+                elif event.key == pygame.K_SPACE:
+                    self.duck.respawn_random()
+                    tries = 100
+                    while pygame.sprite.spritecollide(self.duck, self.all_hazards, False) and tries > 0:
+                        tries -= 1
+                        self.duck.respawn_random()
+
+            elif event.type == pygame.KEYDOWN:
+                #Start Moving
+                if event.key == pygame.K_LEFT:
+                    self.duck.move_left()
+                elif event.key == pygame.K_RIGHT:
+                    self.duck.move_right()
+                elif event.key == pygame.K_UP:
+                    self.duck.move_up()
+                elif event.key == pygame.K_DOWN:
+                    self.duck.move_down()
+
     def update(self):
             self.duck.update()
             self.all_hazards.update()
 
-            #increase score, spawn new hazard
+            #spawn new hazard
             if (len(self.all_hazards) < Settings.nof_hazards
             and pygame.time.get_ticks() >= self.timestamps["last_hazard"] + self.hazard_rate):
-                self.increase_score()
 
-                hazard_class = random.choice([Barrel, Hammer, Axe])
-                h = hazard_class(self)
+                Hazard_class = random.choice([Barrel, Hammer, Axe])
+                h = Hazard_class(self)
                 h.speed *= self.hazard_speed_modifier
-                self.all_hazards.add(h)
                 self.timestamps["last_hazard"] = pygame.time.get_ticks()
 
                 #Hazards won't overlap with each other
                 tries = 100
-                while pygame.sprite.spritecollide(h,self.all_hazards, False) and tries > 0:
+                while pygame.sprite.spritecollide(h, self.all_hazards, False) and tries > 0:
                     h.startpos()
                     tries -= 1
+                self.all_hazards.add(h)
 
             #collisions with duck
             if pygame.sprite.spritecollide(self.duck,self.all_hazards, False):
@@ -275,7 +355,6 @@ class Game(object):
                     self.hazard_rate += Settings.hazard_rate_increase_value
                     self.timestamps["last_rate_increase"] = pygame.time.get_ticks()
 
-    
     def draw(self):
             self.background.draw(self.screen)
             self.duck.draw(self.screen)
@@ -284,6 +363,9 @@ class Game(object):
             pygame.display.flip()
 
     def increase_score(self):
+        """
+        Increases the score
+        """
         self.score += 1
         self.texts_by_name["score"].write(f"{self.score} points")
 
